@@ -1,0 +1,347 @@
+#!/bin/bash
+# Contact: Tim Sheridan <tim.sheridan@nordsec.com>
+
+set -eu
+
+TRUE=1
+FALSE=0
+
+EX_OK=0
+EX_USAGE=1
+EX_NOTFOUND=2
+EX_DATAERR=3
+EX_SOFTWARE=4
+
+SWIFTPM_OVERRIDE_CONFIG_DIR=".swiftpm_override"
+SWIFTPM_OVERRIDE_CONFIG_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/config"
+SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/manifest"
+SWIFT_PACKAGE_OVERRIDE_PROJECTS="$SWIFTPM_OVERRIDE_CONFIG_DIR/projects"
+
+validate_swift_package() {
+	local DIR="$1"; shift
+
+	cd "$DIR"
+	swift package describe &> /dev/null || {
+		echo "Error: failed to detect Swift package in `realpath $DIR`" >&2
+		exit $EX_NOTFOUND
+	}
+	cd - > /dev/null
+}
+
+pbx_util_gen_id() {
+	python3 - << EOF
+import os
+print(str(os.urandom(12).hex()).upper())
+EOF
+}
+
+pbx_util_main_group_id() {
+	PBX_FILENAME="$1"; shift
+
+	python3 - "${PBX_FILENAME}" << EOF
+import json
+import sys
+
+pbxproj_filename = sys.argv[1]
+
+main_group = None
+
+with open(pbxproj_filename) as f:
+	json_string = f.read()
+	d = json.loads(json_string)
+	for key in d['objects']:
+		obj = isa = d['objects'][key]
+		isa = obj.get('isa')
+		if isa  == 'PBXProject':
+			main_group = obj['mainGroup']
+			print(main_group)
+EOF
+}
+
+pbx_import_package() {
+	local PBX_FILENAME="$1"; shift
+	local PACKAGE_NAME="$1"; shift
+	local PACKAGE_PATH="$1"; shift
+
+	local NEW_ID=""
+
+	while [ "$NEW_ID" == "" ]; do
+		local POTENTIAL_ID="`pbx_util_gen_id`"
+		/usr/libexec/PlistBuddy -c "print :objects:${POTENTIAL_ID}" "${PBX_FILENAME}" &> /dev/null || {
+			# We want a miss
+			NEW_ID="$POTENTIAL_ID"
+		}
+	done
+
+	/usr/libexec/PlistBuddy -c "add :objects:${NEW_ID}:isa string PBXFileReference"      "$PBX_FILENAME"
+	/usr/libexec/PlistBuddy -c "add :objects:${NEW_ID}:lastKnownFileType string wrapper" "$PBX_FILENAME"
+	/usr/libexec/PlistBuddy -c "add :objects:${NEW_ID}:name string ${PACKAGE_NAME}"      "$PBX_FILENAME"
+	/usr/libexec/PlistBuddy -c "add :objects:${NEW_ID}:path string ${PACKAGE_PATH}"      "$PBX_FILENAME"
+	/usr/libexec/PlistBuddy -c "add :objects:${NEW_ID}:sourceTree string <group>"        "$PBX_FILENAME"
+
+	cp "$PBX_FILENAME" "$PBX_FILENAME.json"
+	plutil -convert json "$PBX_FILENAME.json"
+	local MAIN_GROUP_ID=`pbx_util_main_group_id "$PBX_FILENAME.json"`
+	rm "$PBX_FILENAME.json"
+
+	/usr/libexec/PlistBuddy -c "add :objects:${MAIN_GROUP_ID}:children:0 string ${NEW_ID}" "$PBX_FILENAME"
+}
+
+create_package_xcworkspace() {
+	local WORKSPACE_NAME="$1"; shift
+
+	mkdir -p "$WORKSPACE_NAME"
+
+	local WORKSPACE_DATA="$WORKSPACE_NAME/contents.xcworkspacedata"
+
+	rm -f "$WORKSPACE_DATA"
+	touch "$WORKSPACE_DATA"
+
+	cat >> "$WORKSPACE_DATA" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace version="1.0">
+EOF
+
+	while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
+		echo "<FileRef location = \"group:Packages/${PACKAGE_NAME}\"></FileRef>" >> "$WORKSPACE_DATA"
+	done < "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+
+	cat >> "$WORKSPACE_DATA" << EOF
+<FileRef location="container:">
+</FileRef>
+</Workspace>
+EOF
+}
+
+workspace_state_check_dependency() {
+	local WORKSPACE_STATE_FILENAME="$1"; shift
+
+	cat "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
+		python3 - "$WORKSPACE_STATE_FILENAME" "$PACKAGE_NAME" "$GIT_REF" << EOF
+import json
+import os
+import sys
+
+workspace_state_filename = sys.argv[1]
+package_name = sys.argv[2]
+git_rev = sys.argv[3]
+
+with open(workspace_state_filename) as f:
+	json_string = f.read()
+	d = json.loads(json_string)
+
+	for dependency in d['object']['dependencies']:
+		if dependency['packageRef']['identity'] == package_name.lower():
+			if dependency['state']['name'] == 'edited':
+				sys.stdout.write(f'Dependency \"{package_name}\" override verified as edited\n')
+				sys.exit(os.EX_OK)
+			elif dependency['state']['name'] == 'sourceControlCheckout' and dependency['state']['checkoutState']['revision'] == git_rev:
+				sys.stdout.write(f'Dependency \"{package_name}\" override verified as matching git ref\n')
+				sys.exit(os.EX_OK)
+			else:
+				sys.stderr.write(f'Dependency \"{package_name}\" override not found\n')
+				sys.exit(os.EX_SOFTWARE)
+
+	sys.stdout.write(f'Dependency \"{package_name}\" override verified as absent dependency\n')
+	sys.exit(os.EX_OK)
+EOF
+
+	done
+}
+
+############################
+
+cmd_show() {
+	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
+		echo "No SwiftPM package overrides" >&2
+	fi
+
+	echo "SwiftPM package overrides:" >&2
+	while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
+		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF"
+	done < "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+}
+
+cmd_set() {
+	while [ $# -gt 0 ]; do
+		local PACKAGE_NAME="$1"; shift
+		local PACKAGE_VERSION="$1"; shift
+
+		local BASE_DIR=`pwd`
+
+		# Override dependency pre-flight
+
+		grep "^$PACKAGE_NAME\t" "$BASE_DIR/$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" &> /dev/null && {
+			echo "Error: Dependency $PACKAGE_NAME has already been overriden" >&2
+			exit $EX_DATAERR
+		}
+
+		validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+
+		# Start dependency override
+
+		pushd $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR &> /dev/null
+		echo "Editing SwiftPM package '$PACKAGE_NAME' to '$PACKAGE_VERSION'"
+		swift package edit --revision $PACKAGE_VERSION $PACKAGE_NAME
+		if [ ! -d "Packages/${PACKAGE_NAME}" ]; then
+			echo "Error: Failed to override package" >&2
+			exit $EX_DATAERR
+		fi
+		pushd "Packages/$PACKAGE_NAME" &> /dev/null
+		local GIT_REF=`git rev-parse HEAD`
+		popd &> /dev/null
+		popd &> /dev/null
+
+		if [ -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ]; then
+			echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
+				if [ "$LINE" == "" ]; then
+					continue
+				fi
+
+				local PROJECT="$LINE"
+				local PBXPROJ_FILE="$PROJECT/project.pbxproj"
+				if [ ! -f "$PBXPROJ_FILE" ]; then
+					echo "Error: project.pbxproj file not found for project: $PROJECT" >&2
+					exit $EX_DATAERR
+				fi
+
+				echo "Adding package checkout to project: $PROJECT"
+				pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
+			done
+		fi
+
+		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
+		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF" >> "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+
+		echo "SwiftPM package override applied"
+	done
+
+	# Generate SwiftPM package xcworkspace
+
+	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_PACKAGE_WORKSPACE -eq 1 ]; then
+		local XCWORKSPACE_FILENAME="package.xcworkspace"
+		echo "Generating SwiftPM package xcworkspace: $XCWORKSPACE_FILENAME"
+		create_package_xcworkspace "$XCWORKSPACE_FILENAME"
+	fi
+}
+
+cmd_set_env_var() {
+	if [ "$SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" == "" ]; then
+		echo "Error: To use this command, SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR must be set in .swiftpm_override/config" >&2
+		exit $EX_DATAERR
+	fi
+
+	set +u
+	if [ -z "${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}" ]; then
+		echo "Error: SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR not found: $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" >&2
+		exit $EX_DATAERR
+	fi
+	set -u
+
+	local SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED="${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}"
+	cmd_set $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
+}
+
+cmd_clear() {
+	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
+		# Already done
+		exit $EX_OK
+	fi
+
+	validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+
+	while read PACKAGE_NAME PACKAGE_VERSION; do
+		echo "Unediting SwiftPM package '$PACKAGE_NAME'"
+		cd "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+		swift package unedit "$PACKAGE_NAME"
+		cd - > /dev/null
+	done < "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+
+	rm "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+}
+
+cmd_check() {
+	local DERIVEDDATA_SUFFIX="SourcePackages/workspace-state.json"
+	local BUILD_SUFFIX="workspace-state.json"
+
+	local DERIVEDDATA_AVAILABLE=$FALSE
+	local BUILD_AVAILABLE=$FALSE
+
+	if [ "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR" != "" ] && [ -f "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" ]; then
+		DERIVEDDATA_AVAILABLE=$TRUE
+	fi
+
+	if [ "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR" != "" ] && [ -f "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" ]; then
+		BUILD_AVAILABLE=$TRUE
+	fi
+
+	local WORKSPACE_STATE_FILE=""
+
+	if [ $DERIVEDDATA_AVAILABLE -eq $TRUE ] && [ $BUILD_AVAILABLE -eq $TRUE ]; then
+		echo "Mixed 'build' dir and 'DerivedData' availability -- prefer 'DerivedData'" >&2
+
+		if [ "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" -nt "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" ]; then
+			echo "Error: 'build' is unexpectedly newer than 'DeriveData'" >&2
+			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" >&2 || true
+			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" >&2 || true
+			exit $EX_DATAERR
+		fi
+
+		local WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX"
+	elif [ $DERIVEDDATA_AVAILABLE -eq $TRUE ]; then
+		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX"
+	elif [ $BUILD_AVAILABLE -eq $TRUE ]; then
+		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"
+	else
+		echo "Error: Unable to determine workspace-state.json file from swiftpm_override config and files present" >&2
+		exit $EX_DATAERR
+	fi
+
+	echo "Performing verification using: $WORKSPACE_STATE_FILE" >&2
+
+	workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
+
+	echo "Verification complete" >&2
+}
+
+############################
+
+# Config load
+
+# Default config
+SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR="."
+SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR=""
+SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR=""
+SWIFTPM_OVERRIDE_CONFIG__CREATE_PACKAGE_WORKSPACE=0
+SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR=""
+
+if [ -f "$SWIFTPM_OVERRIDE_CONFIG_FILE" ]; then
+	. "$SWIFTPM_OVERRIDE_CONFIG_FILE"
+fi
+
+print_usage() {
+	echo "Usage: $0 <command> [command options]"
+	echo "Commands:"
+	echo "  sho      Show dependency overrides"
+	echo "  set      Override dependency version"
+	echo "  set-env  Override dependencies using configured environment variable"
+	echo "  clear    Clear dependency overrides"
+	echo "  check    Validate dependency overrides"
+	echo "  help"
+}
+
+if [ $# -lt 1 ]; then
+	print_usage >&2
+	exit $EX_USAGE
+fi
+
+CMD=$1; shift
+case $CMD in
+	help)        print_usage ;;
+	show)        cmd_show "$@" ;;
+	set)         cmd_set "$@" ;;
+	set-env-var) cmd_set_env_var "$@" ;;
+	check)       cmd_check "$@" ;;
+	clear)       cmd_clear "$@" ;;
+	*)           print_usage >&2 ; exit $EX_USAGE ;;
+esac
