@@ -322,7 +322,7 @@ fi
 print_usage() {
 	echo "Usage: $0 <command> [command options]"
 	echo "Commands:"
-	echo "  sho      Show dependency overrides"
+	echo "  show     Show dependency overrides"
 	echo "  set      Override dependency version"
 	echo "  set-env  Override dependencies using configured environment variable"
 	echo "  clear    Clear dependency overrides"
