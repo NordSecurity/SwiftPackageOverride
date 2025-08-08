@@ -302,6 +302,13 @@ cmd_check() {
 	workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
 
 	echo "Verification complete" >&2
+
+	set +u
+	if [ "$SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL" != "" ]; then
+		echo "Forcing verification to fail because SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL is set" >&2
+		exit 1
+	fi
+	set -u
 }
 
 ############################
