@@ -154,6 +154,7 @@ EOF
 cmd_show() {
 	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
 		echo "No SwiftPM package overrides" >&2
+		return
 	fi
 
 	echo "SwiftPM package overrides:" >&2
@@ -225,6 +226,17 @@ cmd_set() {
 	fi
 }
 
+_set_allow_empty() {
+	if [ $# -eq 0 ]; then
+		echo "Creating empty manifest"
+		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
+		touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+		return
+	fi
+
+	cmd_set "$@"
+}
+
 cmd_set_env_var() {
 	if [ "$SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" == "" ]; then
 		echo "Error: To use this command, SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR must be set in .swiftpm_override/config" >&2
@@ -239,7 +251,7 @@ cmd_set_env_var() {
 	set -u
 
 	local SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED="${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}"
-	cmd_set $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
+	_set_allow_empty $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
 }
 
 cmd_clear() {
@@ -293,8 +305,14 @@ cmd_check() {
 	elif [ $BUILD_AVAILABLE -eq $TRUE ]; then
 		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"
 	else
-		echo "Error: Unable to determine workspace-state.json file from swiftpm_override config and files present" >&2
-		exit $EX_DATAERR
+		if [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
+			# There isn't a workspace file, but we still need to support SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL
+			WORKSPACE_STATE_FILE="/dev/null"
+			echo "Warning: manifest is empty" >&2
+		else
+			echo "Error: Unable to determine workspace-state.json file from swiftpm_override config and files present" >&2
+			exit $EX_DATAERR
+		fi
 	fi
 
 	echo "Performing verification using: $WORKSPACE_STATE_FILE" >&2
@@ -329,11 +347,11 @@ fi
 print_usage() {
 	echo "Usage: $0 <command> [command options]"
 	echo "Commands:"
-	echo "  show     Show dependency overrides"
-	echo "  set      Override dependency version"
-	echo "  set-env  Override dependencies using configured environment variable"
-	echo "  clear    Clear dependency overrides"
-	echo "  check    Validate dependency overrides"
+	echo "  show         Show dependency overrides"
+	echo "  set          Override dependency version"
+	echo "  set-env-var  Override dependencies using configured environment variable"
+	echo "  clear        Clear dependency overrides"
+	echo "  check        Validate dependency overrides"
 	echo "  help"
 }
 
