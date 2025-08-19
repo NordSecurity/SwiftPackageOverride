@@ -306,7 +306,7 @@ cmd_check() {
 		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"
 	else
 		if [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
-			# There isn't a workspace file, but we still need to support SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL
+			# There isn't a workspace file, but we still need to support SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE
 			WORKSPACE_STATE_FILE="/dev/null"
 			echo "Warning: manifest is empty" >&2
 		else
@@ -322,8 +322,8 @@ cmd_check() {
 	echo "Verification complete" >&2
 
 	set +u
-	if [ "$SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL" != "" ]; then
-		echo "Forcing verification to fail because SWIFTPM_OVERRIDE_FORCE_CHECK_FAIL is set" >&2
+	if [ "$SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE" != "" ]; then
+		echo "Forcing verification to fail because SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE is set" >&2
 		exit 1
 	fi
 	set -u
