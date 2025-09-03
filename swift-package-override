@@ -164,9 +164,24 @@ cmd_show() {
 }
 
 cmd_set() {
+	if [ $# -eq 0 ]; then
+		echo "Creating empty manifest" >&2
+		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
+		touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+		return
+	fi
+
 	while [ $# -gt 0 ]; do
-		local PACKAGE_NAME="$1"; shift
+		local PACKAGE_NAME_SPECIFIER="$1"; shift
 		local PACKAGE_VERSION="$1"; shift
+
+		local PACKAGE_NAME="${PACKAGE_NAME_SPECIFIER%\?}"
+
+		if [ "${PACKAGE_NAME_SPECIFIER:0-1}" == "?" ]; then
+			local PACKAGE_OPTIONAL=$TRUE
+		else
+			local PACKAGE_OPTIONAL=$FALSE
+		fi
 
 		local BASE_DIR=`pwd`
 
@@ -178,6 +193,19 @@ cmd_set() {
 		}
 
 		validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+
+		# Skip missing optional dependency overrides
+
+		if [ $PACKAGE_OPTIONAL -eq $TRUE ]; then
+			swift package show-dependencies | grep " ${PACKAGE_NAME}<" > /dev/null || {
+				echo "Warning: Skipping absent optional package override for dependency: $PACKAGE_NAME" >&2
+
+				# Create manifest file so it's there for verification in case this is the only package override
+				touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+
+				continue
+			}
+		fi
 
 		# Start dependency override
 
@@ -226,17 +254,6 @@ cmd_set() {
 	fi
 }
 
-_set_allow_empty() {
-	if [ $# -eq 0 ]; then
-		echo "Creating empty manifest"
-		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
-		touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
-		return
-	fi
-
-	cmd_set "$@"
-}
-
 cmd_set_env_var() {
 	if [ "$SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" == "" ]; then
 		echo "Error: To use this command, SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR must be set in .swiftpm_override/config" >&2
@@ -251,7 +268,7 @@ cmd_set_env_var() {
 	set -u
 
 	local SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED="${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}"
-	_set_allow_empty $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
+	cmd_set $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
 }
 
 cmd_clear() {
