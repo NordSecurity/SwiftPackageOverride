@@ -197,14 +197,17 @@ cmd_set() {
 		# Skip missing optional dependency overrides
 
 		if [ $PACKAGE_OPTIONAL -eq $TRUE ]; then
+			pushd "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
 			swift package show-dependencies | grep " ${PACKAGE_NAME}<" > /dev/null || {
 				echo "Warning: Skipping absent optional package override for dependency: $PACKAGE_NAME" >&2
 
 				# Create manifest file so it's there for verification in case this is the only package override
 				touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
 
+				popd
 				continue
 			}
+			popd
 		fi
 
 		# Start dependency override
