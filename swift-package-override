@@ -292,6 +292,14 @@ cmd_clear() {
 	rm "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
 }
 
+_verification_fail() {
+	echo "Verification result: FAIL"
+}
+
+_verification_pass() {
+	echo "Verification result: PASS"
+}
+
 cmd_check() {
 	local DERIVEDDATA_SUFFIX="SourcePackages/workspace-state.json"
 	local BUILD_SUFFIX="workspace-state.json"
@@ -310,12 +318,13 @@ cmd_check() {
 	local WORKSPACE_STATE_FILE=""
 
 	if [ $DERIVEDDATA_AVAILABLE -eq $TRUE ] && [ $BUILD_AVAILABLE -eq $TRUE ]; then
-		echo "Mixed 'build' dir and 'DerivedData' availability -- prefer 'DerivedData'" >&2
+		echo "Warning: Mixed 'build' dir and 'DerivedData' availability -- prefer 'DerivedData'" >&2
 
 		if [ "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" -nt "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" ]; then
 			echo "Error: 'build' is unexpectedly newer than 'DeriveData'" >&2
 			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" >&2 || true
-			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" >&2 || true
+			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"             >&2 || true
+			_verification_fail
 			exit $EX_DATAERR
 		fi
 
@@ -325,12 +334,19 @@ cmd_check() {
 	elif [ $BUILD_AVAILABLE -eq $TRUE ]; then
 		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"
 	else
-		if [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
+		if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
+			echo "Error: No manifest found" >&2
+			echo "Tip: This means package override was not attempted or failed"
+			_verification_fail
+			exit $EX_DATAERR
+		elif [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
 			# There isn't a workspace file, but we still need to support SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE
 			WORKSPACE_STATE_FILE="/dev/null"
 			echo "Warning: manifest is empty" >&2
 		else
 			echo "Error: Unable to determine workspace-state.json file from swiftpm_override config and files present" >&2
+			echo "Tip: Check that SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR and SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR are configured correctly" >&2
+			_verification_fail
 			exit $EX_DATAERR
 		fi
 	fi
@@ -339,7 +355,7 @@ cmd_check() {
 
 	workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
 
-	echo "Verification complete" >&2
+	_verification_pass
 
 	set +u
 	if [ "$SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE" != "" ]; then
