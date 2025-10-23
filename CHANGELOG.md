@@ -1,3 +1,7 @@
+## NEXT
+
+- Improve `check` error logging for better clarity on failure condition and causes
+
 ## 0.2.1
 
 - Fix optional package overrides when `SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR` is set
