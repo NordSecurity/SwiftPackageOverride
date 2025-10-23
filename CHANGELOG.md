@@ -1,5 +1,7 @@
 ## NEXT
 
+## 0.2.2
+
 - Improve `check` error logging for better clarity on failure condition and causes
 - Fix optional package override skip logic when matched case insensitively
 
