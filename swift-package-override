@@ -265,7 +265,7 @@ cmd_set_env_var() {
 
 	set +u
 	if [ -z "${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}" ]; then
-		echo "Error: SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR not found: $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" >&2
+		echo "Error: Environment variable '$SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR' not set" >&2
 		exit $EX_DATAERR
 	fi
 	set -u
@@ -321,7 +321,7 @@ cmd_check() {
 		echo "Warning: Mixed 'build' dir and 'DerivedData' availability -- prefer 'DerivedData'" >&2
 
 		if [ "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX" -nt "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" ]; then
-			echo "Error: 'build' is unexpectedly newer than 'DeriveData'" >&2
+			echo "Error: 'build' is unexpectedly newer than 'DerivedData'" >&2
 			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR/$DERIVEDDATA_SUFFIX" >&2 || true
 			ls -lash "$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"             >&2 || true
 			_verification_fail
