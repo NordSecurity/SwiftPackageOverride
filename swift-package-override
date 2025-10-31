@@ -257,11 +257,15 @@ cmd_set() {
 	fi
 }
 
-cmd_set_env_var() {
+_err_env_var_not_configured() {
 	if [ "$SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR" == "" ]; then
 		echo "Error: To use this command, SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR must be set in .swiftpm_override/config" >&2
 		exit $EX_DATAERR
 	fi
+}
+
+cmd_set_env_var() {
+	_err_env_var_not_configured
 
 	set +u
 	if [ -z "${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}" ]; then
@@ -272,6 +276,19 @@ cmd_set_env_var() {
 
 	local SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED="${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}"
 	cmd_set $SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR_EXPANDED
+}
+
+cmd_status_env_var() {
+	_err_env_var_not_configured
+
+	set +u
+	if [ -z "${!SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR}" ]; then
+		echo "disabled"
+	else
+		echo "enabled"
+	fi
+	set -u
+	exit 0
 }
 
 cmd_clear() {
@@ -383,11 +400,12 @@ fi
 print_usage() {
 	echo "Usage: $0 <command> [command options]"
 	echo "Commands:"
-	echo "  show         Show dependency overrides"
-	echo "  set          Override dependency version"
-	echo "  set-env-var  Override dependencies using configured environment variable"
-	echo "  clear        Clear dependency overrides"
-	echo "  check        Validate dependency overrides"
+	echo "  show            Show dependency overrides"
+	echo "  set             Override dependency version"
+	echo "  set-env-var     Override dependencies using configured environment variable"
+	echo "  status-env-var  Detect whether dependency override is enabled using environment variable"
+	echo "  clear           Clear dependency overrides"
+	echo "  check           Validate dependency overrides"
 	echo "  help"
 }
 
@@ -398,11 +416,12 @@ fi
 
 CMD=$1; shift
 case $CMD in
-	help)        print_usage ;;
-	show)        cmd_show "$@" ;;
-	set)         cmd_set "$@" ;;
-	set-env-var) cmd_set_env_var "$@" ;;
-	check)       cmd_check "$@" ;;
-	clear)       cmd_clear "$@" ;;
-	*)           print_usage >&2 ; exit $EX_USAGE ;;
+	help)           print_usage ;;
+	show)           cmd_show "$@" ;;
+	set)            cmd_set "$@" ;;
+	set-env-var)    cmd_set_env_var "$@" ;;
+	status-env-var) cmd_status_env_var ;;
+	check)          cmd_check "$@" ;;
+	clear)          cmd_clear "$@" ;;
+	*)              print_usage >&2 ; exit $EX_USAGE ;;
 esac
