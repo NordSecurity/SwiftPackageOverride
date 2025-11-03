@@ -17,7 +17,7 @@ SWIFTPM_OVERRIDE_CONFIG_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/config"
 SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/manifest"
 SWIFT_PACKAGE_OVERRIDE_PROJECTS="$SWIFTPM_OVERRIDE_CONFIG_DIR/projects"
 
-validate_swift_package() {
+_validate_swift_package() {
 	local DIR="$1"; shift
 
 	cd "$DIR"
@@ -28,14 +28,14 @@ validate_swift_package() {
 	cd - > /dev/null
 }
 
-pbx_util_gen_id() {
+_pbx_util_gen_id() {
 	python3 - << EOF
 import os
 print(str(os.urandom(12).hex()).upper())
 EOF
 }
 
-pbx_util_main_group_id() {
+_pbx_util_main_group_id() {
 	PBX_FILENAME="$1"; shift
 
 	python3 - "${PBX_FILENAME}" << EOF
@@ -58,7 +58,7 @@ with open(pbxproj_filename) as f:
 EOF
 }
 
-pbx_import_package() {
+_pbx_import_package() {
 	local PBX_FILENAME="$1"; shift
 	local PACKAGE_NAME="$1"; shift
 	local PACKAGE_PATH="$1"; shift
@@ -66,7 +66,7 @@ pbx_import_package() {
 	local NEW_ID=""
 
 	while [ "$NEW_ID" == "" ]; do
-		local POTENTIAL_ID="`pbx_util_gen_id`"
+		local POTENTIAL_ID="`_pbx_util_gen_id`"
 		/usr/libexec/PlistBuddy -c "print :objects:${POTENTIAL_ID}" "${PBX_FILENAME}" &> /dev/null || {
 			# We want a miss
 			NEW_ID="$POTENTIAL_ID"
@@ -81,13 +81,13 @@ pbx_import_package() {
 
 	cp "$PBX_FILENAME" "$PBX_FILENAME.json"
 	plutil -convert json "$PBX_FILENAME.json"
-	local MAIN_GROUP_ID=`pbx_util_main_group_id "$PBX_FILENAME.json"`
+	local MAIN_GROUP_ID=`_pbx_util_main_group_id "$PBX_FILENAME.json"`
 	rm "$PBX_FILENAME.json"
 
 	/usr/libexec/PlistBuddy -c "add :objects:${MAIN_GROUP_ID}:children:0 string ${NEW_ID}" "$PBX_FILENAME"
 }
 
-create_package_xcworkspace() {
+_create_package_xcworkspace() {
 	local WORKSPACE_NAME="$1"; shift
 
 	mkdir -p "$WORKSPACE_NAME"
@@ -113,7 +113,7 @@ EOF
 EOF
 }
 
-workspace_state_check_dependency() {
+_workspace_state_check_dependency() {
 	local WORKSPACE_STATE_FILENAME="$1"; shift
 
 	cat "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
@@ -192,7 +192,7 @@ cmd_set() {
 			exit $EX_DATAERR
 		}
 
-		validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+		_validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
 
 		# Skip missing optional dependency overrides
 
@@ -238,7 +238,7 @@ cmd_set() {
 				fi
 
 				echo "Adding package checkout to project: $PROJECT"
-				pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
+				_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
 			done
 		fi
 
@@ -253,7 +253,7 @@ cmd_set() {
 	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_PACKAGE_WORKSPACE -eq 1 ]; then
 		local XCWORKSPACE_FILENAME="package.xcworkspace"
 		echo "Generating SwiftPM package xcworkspace: $XCWORKSPACE_FILENAME"
-		create_package_xcworkspace "$XCWORKSPACE_FILENAME"
+		_create_package_xcworkspace "$XCWORKSPACE_FILENAME"
 	fi
 }
 
@@ -297,7 +297,7 @@ cmd_clear() {
 		exit $EX_OK
 	fi
 
-	validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
+	_validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
 
 	while read PACKAGE_NAME PACKAGE_VERSION; do
 		echo "Unediting SwiftPM package '$PACKAGE_NAME'"
@@ -370,7 +370,7 @@ cmd_check() {
 
 	echo "Performing verification using: $WORKSPACE_STATE_FILE" >&2
 
-	workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
+	_workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
 
 	_verification_pass
 
