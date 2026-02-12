@@ -166,7 +166,7 @@ _xcode_select() {
 		exit $EX_SOFTWARE
 	}
 
-	local CURRENT_XCODE_VERSION=$(defaults read `xcode-select -p`/../Info CFBundleShortVersionString)
+	local CURRENT_XCODE_VERSION=$(defaults read "`xcode-select -p`/../Info" CFBundleShortVersionString)
 	local XCODE_VERSION=`head -n 1 $XCODE_VERSION_FILENAME`
 
 	if [ "$XCODE_VERSION" == "$CURRENT_XCODE_VERSION" ]; then
