@@ -23,7 +23,7 @@ _validate_swift_package() {
 	_xcode_select
 
 	cd "$DIR"
-	swift package describe &> /dev/null || {
+	swift package describe > /dev/null || {
 		echo "Error: failed to detect Swift package in `realpath $DIR`" >&2
 		exit $EX_NOTFOUND
 	}
