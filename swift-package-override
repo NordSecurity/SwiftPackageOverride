@@ -20,6 +20,8 @@ SWIFT_PACKAGE_OVERRIDE_PROJECTS="$SWIFTPM_OVERRIDE_CONFIG_DIR/projects"
 _validate_swift_package() {
 	local DIR="$1"; shift
 
+	_xcode_select
+
 	cd "$DIR"
 	swift package describe &> /dev/null || {
 		echo "Error: failed to detect Swift package in `realpath $DIR`" >&2
@@ -147,6 +149,36 @@ with open(workspace_state_filename) as f:
 EOF
 
 	done
+}
+
+_xcode_select() {
+	local XCODE_VERSION_FILENAME=".xcode-version"
+
+	if [ ! -f "$XCODE_VERSION_FILENAME" ] ; then
+		# Classic non-xcodes project behavior
+		# FIXME This is a silent error path for a project with this file but deeper than the root
+		# Can be fixed when we've added support for discovering the project root for deep execution
+		return
+	fi
+
+	which xcodes > /dev/null || {
+		echo "Error: $XCODE_VERSION_FILENAME file present in project but xcodes command not found" >&2
+		exit $EX_SOFTWARE
+	}
+
+	local CURRENT_XCODE_VERSION=$(defaults read `xcode-select -p`/../Info CFBundleShortVersionString)
+	local XCODE_VERSION=`head -n 1 $XCODE_VERSION_FILENAME`
+
+	if [ "$XCODE_VERSION" == "$CURRENT_XCODE_VERSION" ]; then
+		# Already selected
+		return
+	fi
+
+	# This errors out and prints the error if the Xcode version isn't installed
+	xcodes installed $XCODE_VERSION > /dev/null
+
+	echo "swift-package-override is switching to Xcode $XCODE_VERSION set in $XCODE_VERSION_FILENAME" >&2
+	export DEVELOPER_DIR="$(xcodes installed $XCODE_VERSION)/Contents/Developer"
 }
 
 ############################

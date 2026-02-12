@@ -1,3 +1,6 @@
+## 0.4.0
+- Add support for Xcode version switching with `.xcode-version` and `xcodes`
+
 ## 0.3.0
 - Add `status-env-var` command
 
