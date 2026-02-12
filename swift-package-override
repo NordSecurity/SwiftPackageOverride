@@ -174,8 +174,8 @@ _xcode_select() {
 		return
 	fi
 
-	# This errors out and prints the error if the Xcode version isn't installed
-	xcodes installed $XCODE_VERSION > /dev/null
+	# Print error in case of missing Xcode version
+	xcodes installed $XCODE_VERSION > /dev/null || xcodes installed $XCODE_VERSION >&2
 
 	echo "swift-package-override is switching to Xcode $XCODE_VERSION set in $XCODE_VERSION_FILENAME" >&2
 	export DEVELOPER_DIR="$(xcodes installed $XCODE_VERSION)/Contents/Developer"
