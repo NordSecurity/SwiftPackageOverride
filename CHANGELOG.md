@@ -1,3 +1,7 @@
+## NEXT
+- Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option for Tuist compatibility
+- Improve usage documentation in `README.md`
+
 ## 0.4.0
 - Add support for Xcode version switching with `.xcode-version` and `xcodes`
 
