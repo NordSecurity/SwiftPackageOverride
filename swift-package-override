@@ -256,7 +256,22 @@ cmd_set() {
 		popd &> /dev/null
 		popd &> /dev/null
 
-		if [ -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ] && [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
+		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
+		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF" >> "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+
+		echo "SwiftPM package override applied"
+	done
+
+	# Create checkouts symlink
+
+	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
+		echo "Creating symlink for package override: $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
+		ln -s "../../Packages/$PACKAGE_NAME" "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
+	fi
+
+	# Import package overrides into Xcode projects
+	if [ -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ] && [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
+		cut -f 1 -d ' ' "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME; do
 			echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
 				if [ "$LINE" == "" ]; then
 					continue
@@ -269,22 +284,10 @@ cmd_set() {
 					exit $EX_DATAERR
 				fi
 
-				echo "Adding package checkout to project: $PROJECT"
+				echo "Adding '$PACKAGE_NAME' checkout to project: $PROJECT"
 				_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
 			done
-		fi
-
-		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
-		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF" >> "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
-
-		echo "SwiftPM package override applied"
-	done
-
-	# Create checkouts symlink
-
-	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
-		echo "Creating symlink for package override: $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
-		ln -s "../../Packages/$PACKAGE_NAME" "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
+		done
 	fi
 
 	# Generate SwiftPM package xcworkspace
