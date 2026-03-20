@@ -5,11 +5,26 @@
 ## Usage
 
 1. `cd` into the root directory of the project to have a Swift package dependency override applied upon
-2. `swift-package-override set LibtelioSwift v5.4.0` to apply an override
+2. `swift-package-override set foo v1.2.3` to apply an override for package `foo`
 3. Perform testing
 4. `swift-package-override check` to verify overrides in effect during testing
 
 For full usage information, run `swift-package-override help`
+
+### Package override specifier
+
+Package overrides are specified as a string of package name and git ref pairs separated by spaces.
+
+For example:
+
+`foo v1.2.3 bar my_branch baz 46cbda4118e4cae48ad45e1cd7353b9f1674d91e qux? v5.6.7`
+
+- Package `foo` will have an override set using Git tag `v1.2.3`
+- Package `bar` will have an override set using Git branch `my_branch`
+- Package `baz` will have an override set using Git commit `46cbda4118e4cae48ad45e1cd7353b9f1674d91e`
+- Package `qux` will have an optional override set using Git tag `v5.6.7`
+
+Attempts to override a package which is not present as a dependency of the project will cause `swift-package-override` to return an error. If an optional override is specified, then the absence of a dependency is only treated as a warning.
 
 ## Configuration
 
