@@ -1,5 +1,7 @@
 ## NEXT
-- Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option for Tuist compatibility
+- Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option
+- Add `SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` config option
+- Add `project-import` command
 - Improve usage documentation in `README.md`
 
 ## 0.4.0

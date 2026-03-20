@@ -181,6 +181,30 @@ _xcode_select() {
 	export DEVELOPER_DIR="$(xcodes installed $XCODE_VERSION)/Contents/Developer"
 }
 
+_project_import() {
+	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ]; then
+		return
+	fi
+
+	cut -f 1 -d ' ' "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME; do
+		echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
+			if [ "$LINE" == "" ]; then
+				continue
+			fi
+
+			local PROJECT="$LINE"
+			local PBXPROJ_FILE="$PROJECT/project.pbxproj"
+			if [ ! -f "$PBXPROJ_FILE" ]; then
+				echo "Error: project.pbxproj file not found for project: $PROJECT" >&2
+				exit $EX_DATAERR
+			fi
+
+			echo "Adding '$PACKAGE_NAME' checkout to project: $PROJECT"
+			_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
+		done
+	done
+}
+
 ############################
 
 cmd_show() {
@@ -256,24 +280,6 @@ cmd_set() {
 		popd &> /dev/null
 		popd &> /dev/null
 
-		if [ -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ]; then
-			echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
-				if [ "$LINE" == "" ]; then
-					continue
-				fi
-
-				local PROJECT="$LINE"
-				local PBXPROJ_FILE="$PROJECT/project.pbxproj"
-				if [ ! -f "$PBXPROJ_FILE" ]; then
-					echo "Error: project.pbxproj file not found for project: $PROJECT" >&2
-					exit $EX_DATAERR
-				fi
-
-				echo "Adding package checkout to project: $PROJECT"
-				_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
-			done
-		fi
-
 		mkdir -p "$SWIFTPM_OVERRIDE_CONFIG_DIR"
 		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF" >> "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
 
@@ -285,6 +291,11 @@ cmd_set() {
 	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
 		echo "Creating symlink for package override: $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
 		ln -s "../../Packages/$PACKAGE_NAME" "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
+	fi
+
+	# Import package overrides into Xcode projects
+	if [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
+		_project_import
 	fi
 
 	# Generate SwiftPM package xcworkspace
@@ -330,11 +341,20 @@ cmd_status_env_var() {
 	exit 0
 }
 
+cmd_project_import() {
+	_project_import
+}
+
 cmd_clear() {
 	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
 		# Already done
 		exit $EX_OK
 	fi
+
+	# TODO XXX
+	# Warning: This `clear` command is incomplete and out-of-date.
+	# It needs updating to behave correctly for the full set of features
+	# and configuration options that are supported in the tool.
 
 	_validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
 
@@ -432,6 +452,7 @@ SWIFTPM_OVERRIDE_CONFIG__DERIVEDDATA_DIR=""
 SWIFTPM_OVERRIDE_CONFIG__CREATE_PACKAGE_WORKSPACE=0
 SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK=0
 SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR=""
+SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE=1
 
 if [ -f "$SWIFTPM_OVERRIDE_CONFIG_FILE" ]; then
 	. "$SWIFTPM_OVERRIDE_CONFIG_FILE"
@@ -444,6 +465,7 @@ print_usage() {
 	echo "  set             Override dependency version"
 	echo "  set-env-var     Override dependencies using configured environment variable"
 	echo "  status-env-var  Detect whether dependency override is enabled using environment variable"
+	echo "  project-import  Import overrides into Xcode project(s) and workspace(s)"
 	echo "  clear           Clear dependency overrides"
 	echo "  check           Validate dependency overrides"
 	echo "  help"
@@ -461,6 +483,7 @@ case $CMD in
 	set)            cmd_set "$@" ;;
 	set-env-var)    cmd_set_env_var "$@" ;;
 	status-env-var) cmd_status_env_var ;;
+	project-import) cmd_project_import ;;
 	check)          cmd_check "$@" ;;
 	clear)          cmd_clear "$@" ;;
 	*)              print_usage >&2 ; exit $EX_USAGE ;;
