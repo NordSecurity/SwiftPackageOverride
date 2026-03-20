@@ -336,6 +336,11 @@ cmd_clear() {
 		exit $EX_OK
 	fi
 
+	# TODO XXX
+	# Warning: This `clear` command is incomplete and out-of-date.
+	# It needs updating to behave correctly for the full set of features
+	# and configuration options that are supported in the tool.
+
 	_validate_swift_package "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR"
 
 	while read PACKAGE_NAME PACKAGE_VERSION; do
