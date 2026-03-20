@@ -181,6 +181,30 @@ _xcode_select() {
 	export DEVELOPER_DIR="$(xcodes installed $XCODE_VERSION)/Contents/Developer"
 }
 
+_project_import() {
+	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ]; then
+		return
+	fi
+
+	cut -f 1 -d ' ' "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME; do
+		echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
+			if [ "$LINE" == "" ]; then
+				continue
+			fi
+
+			local PROJECT="$LINE"
+			local PBXPROJ_FILE="$PROJECT/project.pbxproj"
+			if [ ! -f "$PBXPROJ_FILE" ]; then
+				echo "Error: project.pbxproj file not found for project: $PROJECT" >&2
+				exit $EX_DATAERR
+			fi
+
+			echo "Adding '$PACKAGE_NAME' checkout to project: $PROJECT"
+			_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
+		done
+	done
+}
+
 ############################
 
 cmd_show() {
@@ -270,24 +294,8 @@ cmd_set() {
 	fi
 
 	# Import package overrides into Xcode projects
-	if [ -f "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" ] && [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
-		cut -f 1 -d ' ' "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" | while read PACKAGE_NAME; do
-			echo "" | cat "$SWIFT_PACKAGE_OVERRIDE_PROJECTS" - | while read LINE; do
-				if [ "$LINE" == "" ]; then
-					continue
-				fi
-
-				local PROJECT="$LINE"
-				local PBXPROJ_FILE="$PROJECT/project.pbxproj"
-				if [ ! -f "$PBXPROJ_FILE" ]; then
-					echo "Error: project.pbxproj file not found for project: $PROJECT" >&2
-					exit $EX_DATAERR
-				fi
-
-				echo "Adding '$PACKAGE_NAME' checkout to project: $PROJECT"
-				_pbx_import_package "$PBXPROJ_FILE" "$PACKAGE_NAME" "$PWD/$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
-			done
-		done
+	if [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
+		_project_import
 	fi
 
 	# Generate SwiftPM package xcworkspace
@@ -331,6 +339,10 @@ cmd_status_env_var() {
 	fi
 	set -u
 	exit 0
+}
+
+cmd_project_import() {
+	_project_import
 }
 
 cmd_clear() {
@@ -453,6 +465,7 @@ print_usage() {
 	echo "  set             Override dependency version"
 	echo "  set-env-var     Override dependencies using configured environment variable"
 	echo "  status-env-var  Detect whether dependency override is enabled using environment variable"
+	echo "  project-import  Import overrides into Xcode project(s) and workspace(s)"
 	echo "  clear           Clear dependency overrides"
 	echo "  check           Validate dependency overrides"
 	echo "  help"
@@ -470,6 +483,7 @@ case $CMD in
 	set)            cmd_set "$@" ;;
 	set-env-var)    cmd_set_env_var "$@" ;;
 	status-env-var) cmd_status_env_var ;;
+	project-import) cmd_project_import ;;
 	check)          cmd_check "$@" ;;
 	clear)          cmd_clear "$@" ;;
 	*)              print_usage >&2 ; exit $EX_USAGE ;;
