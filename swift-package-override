@@ -30,6 +30,32 @@ _validate_swift_package() {
 	cd - > /dev/null
 }
 
+_fetch_dependency_tags() {
+	local dep_name="$1"
+	local target_version="$2"
+	for cache_dir in \
+		"$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/repositories" \
+		"$HOME/.swiftpm/cache/repositories" \
+		"$HOME/Library/Caches/org.swift.swiftpm/repositories"
+	do
+		[ -d "$cache_dir" ] || continue
+		find "$cache_dir" -maxdepth 1 -type d -iname "*${dep_name}*" | while read repo; do
+			local latest_tag=$(git -C "$repo" tag --sort=-creatordate 2>/dev/null | head -1)
+			if git -C "$repo" rev-parse "refs/tags/$target_version" &>/dev/null; then
+				echo "Tag '$target_version' already exists in cache $repo (latest tag: ${latest_tag:-none})"
+			else
+				echo "Tag '$target_version' NOT found in cache $repo (latest tag: ${latest_tag:-none}), fetching latest tags..."
+				git -C "$repo" fetch --tags --prune origin || true
+				if git -C "$repo" rev-parse "refs/tags/$target_version" &>/dev/null; then
+					echo "Tag '$target_version' now available after fetch"
+				else
+					echo "Warning: Tag '$target_version' still not found after fetch"
+				fi
+			fi
+		done
+	done
+}
+
 _pbx_util_gen_id() {
 	python3 - << EOF
 import os
@@ -245,6 +271,7 @@ cmd_set() {
 		# Start dependency override
 
 		pushd $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR &> /dev/null
+		_fetch_dependency_tags "$PACKAGE_NAME" "$PACKAGE_VERSION"
 		echo "Editing SwiftPM package '$PACKAGE_NAME' to '$PACKAGE_VERSION'"
 		swift package edit --revision $PACKAGE_VERSION $PACKAGE_NAME
 		if [ ! -d "Packages/${PACKAGE_NAME}" ]; then
