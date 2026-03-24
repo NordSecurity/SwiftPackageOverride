@@ -30,9 +30,26 @@ _validate_swift_package() {
 	cd - > /dev/null
 }
 
+_get_resolved_dependency_url() {
+	local dep_name="$1"
+	local resolved_file="$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Package.resolved"
+	[ -f "$resolved_file" ] || return
+	python3 -c "
+import json, sys
+with open('$resolved_file') as f:
+    data = json.load(f)
+for pin in data.get('pins', []):
+    if pin.get('identity', '').lower() == '${dep_name}'.lower():
+        print(pin.get('location', ''))
+        break
+"
+}
+
 _fetch_dependency_tags() {
 	local dep_name="$1"
 	local target_version="$2"
+	local resolved_url=$(_get_resolved_dependency_url "$dep_name")
+
 	for cache_dir in \
 		"$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/repositories" \
 		"$HOME/.swiftpm/cache/repositories" \
@@ -40,6 +57,13 @@ _fetch_dependency_tags() {
 	do
 		[ -d "$cache_dir" ] || continue
 		find "$cache_dir" -maxdepth 1 -type d -iname "*${dep_name}*" | while read repo; do
+			local remote_url=$(git -C "$repo" remote get-url origin 2>/dev/null)
+
+			if [ -n "$resolved_url" ] && [ -n "$remote_url" ] && [ "$remote_url" != "$resolved_url" ]; then
+				echo "Skipping cache $repo (remote '$remote_url' does not match resolved '$resolved_url')"
+				continue
+			fi
+
 			local latest_tag=$(git -C "$repo" tag --sort=-creatordate 2>/dev/null | head -1)
 			if git -C "$repo" rev-parse "refs/tags/$target_version" &>/dev/null; then
 				echo "Tag '$target_version' already exists in cache $repo (latest tag: ${latest_tag:-none})"
@@ -271,6 +295,7 @@ cmd_set() {
 		# Start dependency override
 
 		pushd $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR &> /dev/null
+		_fetch_dependency_tags "$PACKAGE_NAME" "$PACKAGE_VERSION"
 		echo "Editing SwiftPM package '$PACKAGE_NAME' to '$PACKAGE_VERSION'"
 		swift package edit --revision $PACKAGE_VERSION $PACKAGE_NAME
 		if [ ! -d "Packages/${PACKAGE_NAME}" ]; then
