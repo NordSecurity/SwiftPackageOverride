@@ -271,7 +271,6 @@ cmd_set() {
 		# Start dependency override
 
 		pushd $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR &> /dev/null
-		_fetch_dependency_tags "$PACKAGE_NAME" "$PACKAGE_VERSION"
 		echo "Editing SwiftPM package '$PACKAGE_NAME' to '$PACKAGE_VERSION'"
 		swift package edit --revision $PACKAGE_VERSION $PACKAGE_NAME
 		if [ ! -d "Packages/${PACKAGE_NAME}" ]; then
