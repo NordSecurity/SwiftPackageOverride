@@ -75,7 +75,7 @@ SWIFTPM_OVERRIDE_CONFIG__VERSION=1
 
 #### SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE
 
-`SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` is enabled by default. If it is disabled, Xcode projects or workspaces listed in `.swiftpm_override/projects` will not have package overrides imported into them when `swift-package-override` `set` or `set-env-var` commands are run. This is useful for projects which are performing Xcode project or workspace generation using separate tools (e.g. [xcodegen](https://xcodegen.com/), or [Tuist](https://tuist.dev/)). After Xcode project or workspace generation has been performed using another tool, an explicit project import can be performed using `swift-package-override project-import`.
+`SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` is enabled by default. If it is disabled, Xcode projects or workspaces listed in `.swiftpm_override/projects` will not have package overrides imported into them when `swift-package-override` `set` or `set-env-var` commands are run. This is useful for projects which are performing Xcode project or workspace generation using separate tools (e.g. [XcodeGen](https://xcodegen.com/), or [Tuist](https://tuist.dev/)). After Xcode project or workspace generation has been performed using another tool, an explicit project import can be performed using `swift-package-override project-import`.
 
 ### .swiftpm_override/projects
 
