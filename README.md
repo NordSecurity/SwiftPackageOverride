@@ -67,7 +67,7 @@ SWIFTPM_OVERRIDE_CONFIG__VERSION=1
 
 #### SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK
 
-`SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` is disabled by default. Enable it by setting a value of `1`. This is is required for use of `swift-package-override` with Tuist and dependencies are defined using the `Tuist/Package.swift` file. If package dependencies are specified using a `Package.swift` file in a different location, this option can be left as disabled.
+`SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` is disabled by default. Enable it by setting a value of `1`. This is is required for use of `swift-package-override` with [Tuist](https://tuist.dev/) and dependencies are defined using the `Tuist/Package.swift` file. If package dependencies are specified using a `Package.swift` file in a different location, this option can be left as disabled.
 
 #### SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR
 
@@ -75,7 +75,7 @@ SWIFTPM_OVERRIDE_CONFIG__VERSION=1
 
 #### SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE
 
-`SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` is enabled by default. If it is disabled, Xcode projects or workspaces listed in `.swiftpm_override/projects` will not have package overrides imported into them when `swift-package-override` `set` or `set-env-var` commands are run. This is useful for projects which are performing Xcode project or workspace generation using separate tools (e.g. xcodegen, or Tuist). After Xcode project or workspace generation has been performed using another tool, an explicit project import can be performed using `swift-package-override project-import`.
+`SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` is enabled by default. If it is disabled, Xcode projects or workspaces listed in `.swiftpm_override/projects` will not have package overrides imported into them when `swift-package-override` `set` or `set-env-var` commands are run. This is useful for projects which are performing Xcode project or workspace generation using separate tools (e.g. [xcodegen](https://xcodegen.com/), or [Tuist](https://tuist.dev/)). After Xcode project or workspace generation has been performed using another tool, an explicit project import can be performed using `swift-package-override project-import`.
 
 ### .swiftpm_override/projects
 
