@@ -1,4 +1,4 @@
-## NEXT
+## 0.5.0
 - Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option
 - Add `SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` config option
 - Add `project-import` command
