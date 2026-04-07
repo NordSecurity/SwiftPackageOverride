@@ -3,6 +3,7 @@
 - Add `SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` config option
 - Add `project-import` command
 - Improve usage documentation in `README.md`
+- Add Xcode project for installation
 
 ## 0.4.0
 - Add support for Xcode version switching with `.xcode-version` and `xcodes`
