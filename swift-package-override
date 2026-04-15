@@ -503,7 +503,8 @@ print_usage() {
 	echo "  project-import  Import overrides into Xcode project(s) and workspace(s)"
 	echo "  clear           Clear dependency overrides"
 	echo "  check           Validate dependency overrides"
-	echo "  help"
+	echo "  help            Print usage information"
+	echo "  version         Print version information"
 }
 
 if [ $# -lt 1 ]; then

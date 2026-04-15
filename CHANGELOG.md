@@ -1,3 +1,6 @@
+## NEXT
+- Add missing command descriptions in `help` command
+
 ## 0.6.1
 - Remove command path prefix in `help` command
 
