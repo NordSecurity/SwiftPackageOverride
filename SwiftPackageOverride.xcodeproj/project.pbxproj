@@ -6,10 +6,36 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		608531082F90135400660A98 /* all */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 6085310B2F90135400660A98 /* Build configuration list for PBXAggregateTarget "all" */;
+			buildPhases = (
+			);
+			dependencies = (
+				6085310D2F90135D00660A98 /* PBXTargetDependency */,
+			);
+			name = all;
+			packageProductDependencies = (
+			);
+			productName = all;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		601DACC02F7FF8C400CAFE73 /* swift-package-override in CopyFiles */ = {isa = PBXBuildFile; fileRef = 60BEF3AD2F64293000E95CD1 /* swift-package-override */; };
 		601DACC12F7FF8C900CAFE73 /* swift-package-override.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 601DACB92F7FF84F00CAFE73 /* swift-package-override.1 */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6085310C2F90135D00660A98 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 60BEF3A32F6428EC00E95CD1 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6086266D2F7FF78F00569BFB;
+			remoteInfo = "swift-package-override";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		601DACBE2F7FF8A100CAFE73 /* CopyFiles */ = {
@@ -96,6 +122,9 @@
 				BuildIndependentTargetsInParallel = 1;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					608531082F90135400660A98 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 					6086266D2F7FF78F00569BFB = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -116,11 +145,36 @@
 			projectRoot = "";
 			targets = (
 				6086266D2F7FF78F00569BFB /* swift-package-override */,
+				608531082F90135400660A98 /* all */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXTargetDependency section */
+		6085310D2F90135D00660A98 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6086266D2F7FF78F00569BFB /* swift-package-override */;
+			targetProxy = 6085310C2F90135D00660A98 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		608531092F90135400660A98 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		6085310A2F90135400660A98 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		608626732F7FF78F00569BFB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -255,6 +309,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6085310B2F90135400660A98 /* Build configuration list for PBXAggregateTarget "all" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				608531092F90135400660A98 /* Debug */,
+				6085310A2F90135400660A98 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		608626722F7FF78F00569BFB /* Build configuration list for PBXNativeTarget "swift-package-override" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

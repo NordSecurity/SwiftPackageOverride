@@ -1,6 +1,7 @@
 ## NEXT
 - Omit repetitive output of commit hashes in `show` command
 - Add `version` command
+- Add `all` aggregate target in Xcode project
 
 ## 0.5.0
 - Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option
