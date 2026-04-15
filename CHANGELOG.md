@@ -1,4 +1,4 @@
-## NEXT
+## 0.6.0
 - Omit repetitive output of commit hashes in `show` command
 - Add `version` command
 - Add `all` aggregate target in Xcode project
