@@ -1,3 +1,6 @@
+## NEXT
+- Remove command path prefix in `help` command
+
 ## 0.6.0
 - Omit repetitive output of commit hashes in `show` command
 - Add `version` command

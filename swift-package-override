@@ -494,7 +494,7 @@ if [ -f "$SWIFTPM_OVERRIDE_CONFIG_FILE" ]; then
 fi
 
 print_usage() {
-	echo "Usage: $0 <command> [command options]"
+	echo "Usage: `basename $0` <command> [command options]"
 	echo "Commands:"
 	echo "  show            Show dependency overrides"
 	echo "  set             Override dependency version"
