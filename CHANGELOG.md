@@ -1,3 +1,6 @@
+## NEXT
+- Omit repetitive output of commit hashes in `show` command
+
 ## 0.5.0
 - Add `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` config option
 - Add `SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE` config option

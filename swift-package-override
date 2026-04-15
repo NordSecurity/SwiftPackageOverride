@@ -238,7 +238,13 @@ cmd_show() {
 
 	echo "SwiftPM package overrides:" >&2
 	while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
-		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF"
+		if [ "$PACKAGE_VERSION" != "$GIT_REF" ]; then
+			# Normal full listing
+			echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF"
+		else
+			# Omit repetitive output of commit hashes
+			echo "$PACKAGE_NAME $GIT_REF"
+		fi
 	done < "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
 }
 
