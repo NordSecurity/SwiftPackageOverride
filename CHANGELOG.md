@@ -1,4 +1,4 @@
-## NEXT
+## 0.6.2
 - Add missing command descriptions in `help` command
 
 ## 0.6.1
