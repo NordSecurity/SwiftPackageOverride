@@ -1,4 +1,4 @@
-## NEXT
+## 0.6.1
 - Remove command path prefix in `help` command
 
 ## 0.6.0
