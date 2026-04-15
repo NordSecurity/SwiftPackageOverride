@@ -35,6 +35,8 @@ EX_NOTFOUND=2
 EX_DATAERR=3
 EX_SOFTWARE=4
 
+SWIFT_PACKAGE_OVERRIDE_VERSION="0.5.0"
+
 SWIFTPM_OVERRIDE_CONFIG_DIR=".swiftpm_override"
 SWIFTPM_OVERRIDE_CONFIG_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/config"
 SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/manifest"
@@ -470,6 +472,10 @@ cmd_check() {
 	set -u
 }
 
+cmd_version() {
+	echo "swift-package-override version $SWIFT_PACKAGE_OVERRIDE_VERSION"
+}
+
 ############################
 
 # Config load
@@ -508,6 +514,7 @@ fi
 CMD=$1; shift
 case $CMD in
 	help)           print_usage ;;
+	version)        cmd_version ;;
 	show)           cmd_show "$@" ;;
 	set)            cmd_set "$@" ;;
 	set-env-var)    cmd_set_env_var "$@" ;;
