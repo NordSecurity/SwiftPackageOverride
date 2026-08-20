@@ -1,3 +1,6 @@
+## 0.6.3
+- Fetch overridden revisions missing from the SwiftPM repository cache in `set` command
+
 ## 0.6.2
 - Add missing command descriptions in `help` command
 

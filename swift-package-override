@@ -35,7 +35,7 @@ EX_NOTFOUND=2
 EX_DATAERR=3
 EX_SOFTWARE=4
 
-SWIFT_PACKAGE_OVERRIDE_VERSION="0.6.2"
+SWIFT_PACKAGE_OVERRIDE_VERSION="0.6.3"
 
 SWIFTPM_OVERRIDE_CONFIG_DIR=".swiftpm_override"
 SWIFTPM_OVERRIDE_CONFIG_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/config"
@@ -53,6 +53,49 @@ _validate_swift_package() {
 		exit $EX_NOTFOUND
 	}
 	cd - > /dev/null
+}
+
+_refresh_repository_cache() {
+	local PACKAGE_NAME="$1"; shift
+	local PACKAGE_VERSION="$1"; shift
+
+	# `swift package edit --revision` looks up the revision in the local SwiftPM repository cache without fetching, so a revision pushed after the last fetch is reported as non-existent
+	shopt -s nullglob nocaseglob
+	local REPO_DIRS=(
+		".build/repositories/${PACKAGE_NAME}-"*
+		"$HOME/.swiftpm/cache/repositories/${PACKAGE_NAME}-"*
+		"$HOME/Library/Caches/org.swift.swiftpm/repositories/${PACKAGE_NAME}-"*
+	)
+	shopt -u nullglob nocaseglob
+
+	if [ ${#REPO_DIRS[@]} -eq 0 ]; then
+		# Nothing cached, so SwiftPM clones the repository and sees every ref
+		return
+	fi
+
+	local REPO_DIR
+	local REPO_PATH
+	local REFRESHED_REPO_PATHS=""
+
+	for REPO_DIR in "${REPO_DIRS[@]}"; do
+		# `$HOME/.swiftpm/cache` is a symlink to the system cache directory on macOS
+		REPO_PATH=`realpath "$REPO_DIR"`
+		case "$REFRESHED_REPO_PATHS" in
+			*"|$REPO_PATH|"*) continue ;;
+		esac
+		REFRESHED_REPO_PATHS="$REFRESHED_REPO_PATHS|$REPO_PATH|"
+
+		# Revision already present in the cache
+		if git -C "$REPO_DIR" rev-parse --verify --quiet "$PACKAGE_VERSION^{commit}" > /dev/null; then
+			continue
+		fi
+
+		echo "Fetching revision '$PACKAGE_VERSION' of package '$PACKAGE_NAME' into repository cache" >&2
+		GIT_TERMINAL_PROMPT=0 git -C "$REPO_DIR" fetch --prune --quiet origin || {
+			# Best effort: `swift package edit` reports an accurate error if the revision is missing
+			echo "Warning: Failed to refresh repository cache in `basename "$REPO_DIR"`" >&2
+		}
+	done
 }
 
 _pbx_util_gen_id() {
@@ -300,6 +343,7 @@ cmd_set() {
 		# Start dependency override
 
 		pushd $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR &> /dev/null
+		_refresh_repository_cache "$PACKAGE_NAME" "$PACKAGE_VERSION"
 		echo "Editing SwiftPM package '$PACKAGE_NAME' to '$PACKAGE_VERSION'"
 		swift package edit --revision $PACKAGE_VERSION $PACKAGE_NAME
 		if [ ! -d "Packages/${PACKAGE_NAME}" ]; then
