@@ -1,3 +1,10 @@
+## 0.7.0
+- Create a checkouts symlink for every overridden package, not only the last one, with `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK`
+- Verify the checkouts symlinks in `check` with `SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK`
+- Fail `check` when the manifest is missing
+- Fix skipping an absent optional package override when `SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR` is set
+- Add behaviour tests in `tests/run_tests.sh`
+
 ## 0.6.3
 - Fetch overridden revisions missing from the SwiftPM repository cache in `set` command
 

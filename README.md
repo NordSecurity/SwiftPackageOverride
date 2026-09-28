@@ -67,7 +67,7 @@ SWIFTPM_OVERRIDE_CONFIG__VERSION=1
 
 #### SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK
 
-`SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` is disabled by default. Enable it by setting a value of `1`. This is is required for use of `swift-package-override` with [Tuist](https://tuist.dev/) and dependencies are defined using the `Tuist/Package.swift` file. If package dependencies are specified using a `Package.swift` file in a different location, this option can be left as disabled.
+`SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK` is disabled by default. Enable it by setting a value of `1`. This is is required for use of `swift-package-override` with [Tuist](https://tuist.dev/) and dependencies are defined using the `Tuist/Package.swift` file. If package dependencies are specified using a `Package.swift` file in a different location, this option can be left as disabled. When enabled, the `check` command also verifies that every overridden package's symlink points at its override checkout.
 
 #### SWIFTPM_OVERRIDE_CONFIG__SET_ENV_VAR
 
@@ -80,3 +80,11 @@ SWIFTPM_OVERRIDE_CONFIG__VERSION=1
 ### .swiftpm_override/projects
 
 This file should contain the paths to xcodeproj bundles which should have package overrides applied to them. Each path should be followed by a LF.
+
+## Tests
+
+`tests/run_tests.sh` runs behaviour tests against a throwaway project and throwaway git packages in a temporary directory. It requires git and a Swift toolchain. Run it from the repository root:
+
+```
+tests/run_tests.sh
+```
