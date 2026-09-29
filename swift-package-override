@@ -35,7 +35,7 @@ EX_NOTFOUND=2
 EX_DATAERR=3
 EX_SOFTWARE=4
 
-SWIFT_PACKAGE_OVERRIDE_VERSION="0.6.3"
+SWIFT_PACKAGE_OVERRIDE_VERSION="0.7.0"
 
 SWIFTPM_OVERRIDE_CONFIG_DIR=".swiftpm_override"
 SWIFTPM_OVERRIDE_CONFIG_FILE="$SWIFTPM_OVERRIDE_CONFIG_DIR/config"
@@ -273,6 +273,50 @@ _project_import() {
 	done
 }
 
+_checkouts_symlink_path() {
+	local PACKAGE_NAME="$1"; shift
+	echo "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
+}
+
+_create_checkouts_symlink() {
+	local PACKAGE_NAME="$1"; shift
+
+	local LINK
+	LINK=`_checkouts_symlink_path "$PACKAGE_NAME"`
+	local TARGET="../../Packages/$PACKAGE_NAME"
+
+	if [ -L "$LINK" ] && [ "`readlink "$LINK"`" == "$TARGET" ]; then
+		# Already in place
+		return
+	fi
+
+	if [ -e "$LINK" ] || [ -L "$LINK" ]; then
+		echo "Error: '$LINK' already exists and does not point at the package override" >&2
+		exit $EX_DATAERR
+	fi
+
+	echo "Creating symlink for package override: $LINK"
+	ln -s "$TARGET" "$LINK"
+}
+
+_checkouts_symlink_check() {
+	while read PACKAGE_NAME PACKAGE_VERSION GIT_REF; do
+		local LINK
+		LINK=`_checkouts_symlink_path "$PACKAGE_NAME"`
+		local CHECKOUT="$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/Packages/$PACKAGE_NAME"
+		local CHECKOUT_REALPATH
+		CHECKOUT_REALPATH=`cd "$CHECKOUT" 2> /dev/null && pwd -P || true`
+
+		if [ ! -L "$LINK" ] || [ "$CHECKOUT_REALPATH" == "" ] || [ "`cd "$LINK" 2> /dev/null && pwd -P || true`" != "$CHECKOUT_REALPATH" ]; then
+			echo "Error: '$LINK' does not point at the package override checkout '$CHECKOUT'" >&2
+			_verification_fail
+			exit $EX_SOFTWARE
+		fi
+
+		echo "Dependency \"$PACKAGE_NAME\" override verified as linked from checkouts"
+	done < "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
+}
+
 ############################
 
 cmd_show() {
@@ -331,10 +375,10 @@ cmd_set() {
 			swift package show-dependencies | grep -i " ${PACKAGE_NAME}<" > /dev/null || {
 				echo "Warning: Skipping absent optional package override for dependency: $PACKAGE_NAME" >&2
 
+				popd
+
 				# Create manifest file so it's there for verification in case this is the only package override
 				touch "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
-
-				popd
 				continue
 			}
 			popd
@@ -359,14 +403,13 @@ cmd_set() {
 		echo "$PACKAGE_NAME $PACKAGE_VERSION $GIT_REF" >> "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE"
 
 		echo "SwiftPM package override applied"
+
+		# Create checkouts symlink
+
+		if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
+			_create_checkouts_symlink "$PACKAGE_NAME"
+		fi
 	done
-
-	# Create checkouts symlink
-
-	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
-		echo "Creating symlink for package override: $SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
-		ln -s "../../Packages/$PACKAGE_NAME" "$SWIFTPM_OVERRIDE_CONFIG__PACKAGE_DIR/.build/checkouts/$PACKAGE_NAME"
-	fi
 
 	# Import package overrides into Xcode projects
 	if [ $SWIFTPM_OVERRIDE_CONFIG__PROJECT_IMPORT_ON_OVERRIDE -eq 1 ]; then
@@ -468,6 +511,13 @@ cmd_check() {
 
 	local WORKSPACE_STATE_FILE=""
 
+	if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
+		echo "Error: No manifest found" >&2
+		echo "Tip: This means package override was not attempted or failed"
+		_verification_fail
+		exit $EX_DATAERR
+	fi
+
 	if [ $DERIVEDDATA_AVAILABLE -eq $TRUE ] && [ $BUILD_AVAILABLE -eq $TRUE ]; then
 		echo "Warning: Mixed 'build' dir and 'DerivedData' availability -- prefer 'DerivedData'" >&2
 
@@ -485,12 +535,7 @@ cmd_check() {
 	elif [ $BUILD_AVAILABLE -eq $TRUE ]; then
 		WORKSPACE_STATE_FILE="$SWIFTPM_OVERRIDE_CONFIG__BUILD_DIR/$BUILD_SUFFIX"
 	else
-		if [ ! -f "$SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE" ]; then
-			echo "Error: No manifest found" >&2
-			echo "Tip: This means package override was not attempted or failed"
-			_verification_fail
-			exit $EX_DATAERR
-		elif [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
+		if [ `wc -l < $SWIFT_PACKAGE_OVERRIDE_MANIFEST_FILE` -eq 0 ]; then
 			# There isn't a workspace file, but we still need to support SWIFTPM_OVERRIDE_FORCE_CHECK_FAILURE
 			WORKSPACE_STATE_FILE="/dev/null"
 			echo "Warning: manifest is empty" >&2
@@ -505,6 +550,10 @@ cmd_check() {
 	echo "Performing verification using: $WORKSPACE_STATE_FILE" >&2
 
 	_workspace_state_check_dependency "$WORKSPACE_STATE_FILE"
+
+	if [ $SWIFTPM_OVERRIDE_CONFIG__CREATE_CHECKOUTS_SYMLINK -eq 1 ]; then
+		_checkouts_symlink_check
+	fi
 
 	_verification_pass
 
